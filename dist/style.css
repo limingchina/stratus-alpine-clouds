@@ -4,16 +4,21 @@
 .location h1>#landscape{color:var(--ink)}
 .location h1{max-width:calc(100vw - 380px)}
 .coordinates #coordinates,.coordinates #peak-name{color:inherit}
-.destination-controls{pointer-events:auto;display:grid;grid-template-columns:minmax(160px,230px) auto;gap:9px 15px;align-items:center;margin-top:25px;max-width:380px}
+.destination-controls{pointer-events:auto;display:grid;grid-template-columns:minmax(0,230px);gap:9px 15px;align-items:center;margin-top:25px;max-width:230px}
 .destination-controls>label:first-child{grid-column:1/-1;font-size:8px;letter-spacing:1.4px;font-weight:600;color:#4e6560}
 .destination-controls select{min-width:0;width:100%;border:1px solid #ffffff94;border-radius:7px;background:#f6f7eeeb;color:#314c3a;padding:10px 30px 10px 12px;font-size:11px;box-shadow:0 4px 20px #132e3510}
-.city-toggle{display:flex;align-items:center;gap:6px;font-size:10px;white-space:nowrap;color:#314c3a;background:#f6f7eedb;padding:8px;border-radius:6px}
-.city-toggle input{margin:0;accent-color:#57785b}
+.map-label-controls{border-top:1px solid var(--line);padding:5px 0}
+.globe-view{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;color:#476041;font:inherit;font-size:10px;padding:10px 0;text-align:left}
+.globe-view:hover{color:#243b36}
+.map-label-option{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:10px;color:#718071;padding:10px 0;cursor:pointer}
+.map-label-option input{width:14px;height:14px;margin:0;accent-color:#57785b;cursor:pointer}
 .control-note{grid-column:1/-1;font-size:8px;line-height:1.7;color:#718071;margin-top:-5px}
 .panel{max-height:calc(100dvh - 255px);overflow:auto;scrollbar-width:thin}
-.city-label{pointer-events:none!important;color:#fffdf1;font:600 11px/1.2 'DM Sans',sans-serif;letter-spacing:.2px;white-space:nowrap;text-shadow:0 1px 3px #142c34,1px 0 2px #142c34,-1px 0 2px #142c34,0 -1px 2px #142c34;padding:4px 5px 9px}
+.city-label,.peak-label{pointer-events:none!important;color:#fffdf1;font:600 11px/1.2 'DM Sans',sans-serif;letter-spacing:.2px;white-space:nowrap;text-shadow:0 1px 3px #142c34,1px 0 2px #142c34,-1px 0 2px #142c34,0 -1px 2px #142c34;padding:4px 5px 9px}
 .city-label::after{content:'';position:absolute;left:calc(50% - 2px);bottom:2px;width:4px;height:4px;border-radius:50%;background:#fffbed;box-shadow:0 0 0 1px #314c3a99}
-.city-label.is-hidden{display:none!important}
-@media(max-width:1000px){.location h1{max-width:calc(100vw - 325px)}.destination-controls{grid-template-columns:minmax(145px,200px) auto;gap:9px}.panel{max-height:calc(100dvh - 340px)}}
-@media(max-width:700px){.location h1{max-width:calc(100vw - 44px);font-size:30px}.destination-controls{margin-top:18px;max-width:calc(100vw - 44px);grid-template-columns:minmax(145px,220px) auto}.coordinates{gap:6px;letter-spacing:.3px}.coordinates #peak-name{max-width:135px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.panel{max-height:calc(100dvh - 300px);bottom:210px}.location:has(~.panel.mobile-open){opacity:.15;pointer-events:none}.location:has(~.panel.mobile-open) .destination-controls{pointer-events:none}.city-label{font-size:10px}}
+.city-label.is-hidden,.peak-label.is-hidden{display:none!important}
+.peak-label{color:#fff0c5;padding-bottom:12px}
+.peak-label::after{content:"△";position:absolute;left:calc(50% - 5px);bottom:0;font-size:12px;line-height:12px;color:#fff0c5}
+@media(max-width:1000px){.location h1{max-width:calc(100vw - 325px)}.destination-controls{grid-template-columns:minmax(0,200px);gap:9px}.panel{max-height:calc(100dvh - 340px)}}
+@media(max-width:700px){.location h1{max-width:calc(100vw - 44px);font-size:30px}.destination-controls{margin-top:18px;max-width:calc(100vw - 44px);grid-template-columns:minmax(0,220px)}.coordinates{gap:6px;letter-spacing:.3px}.coordinates #peak-name{max-width:135px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.panel{max-height:calc(100dvh - 300px);bottom:210px}.location:has(~.panel.mobile-open){opacity:.15;pointer-events:none}.location:has(~.panel.mobile-open) .destination-controls{pointer-events:none}.city-label,.peak-label{font-size:10px}}
 @media(max-height:650px) and (min-width:701px){.panel{top:88px;max-height:calc(100dvh - 175px)}.location{top:98px}.location h1{font-size:32px;margin:12px 0}.destination-controls{margin-top:15px}}

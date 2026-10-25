@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {CloudLayer} from '../dist/clouds.js';
 import {localFrame} from '../dist/math.js';
 import {windBearing} from '../dist/wind.js';
-import {mountains,cities} from '../dist/places.js';
+import {mountains,cities,peaks} from '../dist/places.js';
 
 // Exercise the real app event handlers with a small DOM/MapLibre adapter.
 // This verifies interaction wiring without pretending to verify browser pixels.
@@ -50,7 +50,7 @@ function app() {
   }
   const maplibregl={Map:FakeMap,Marker,setWorkerCount(){},MercatorCoordinate:{fromLngLat:([lng,lat])=>({x:lng/360+0.5,y:0.5-lat/180,z:0,meterInMercatorCoordinateUnits:()=>3.6e-8})},NavigationControl:class{},AttributionControl:class{},ScaleControl:class{}};
   const code=readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
-  vm.runInNewContext(code,{document,maplibregl,CloudLayer,localFrame,windBearing,mountains,cities,matchMedia:()=>({matches:true,addEventListener(){}}),window:{devicePixelRatio:1},IntersectionObserver:class{observe(){}},setTimeout:()=>1,clearTimeout(){},cancelAnimationFrame(){},requestAnimationFrame:()=>1,console});
+  vm.runInNewContext(code,{document,maplibregl,CloudLayer,localFrame,windBearing,mountains,cities,peaks,matchMedia:()=>({matches:true,addEventListener(){}}),window:{devicePixelRatio:1},IntersectionObserver:class{observe(){}},setTimeout:()=>1,clearTimeout(){},cancelAnimationFrame(){},requestAnimationFrame:()=>1,console});
   const map=FakeMap.instance;map.fire('load');
   return {elements,map,markers,presets,cloud:()=>map.layers.get('volumetric-clouds')};
 }
@@ -68,7 +68,7 @@ test('nonzero wind starts automatically even with reduced-motion preference',()=
 test('all mountain cameras, high-altitude weather, and reset remain connected',()=>{
   const {elements,map,cloud,presets}=app();
   assert.equal(elements.get('mountain').children.length,7);
-  assert.equal(map.options.minZoom,2);
+  assert.equal(map.options.minZoom,0);
   for(const destination of mountains) {
     elements.get('mountain').fire('change',destination.id);
     assert.deepEqual(map.camera.center,destination.camera.center);
@@ -81,9 +81,45 @@ test('all mountain cameras, high-altitude weather, and reset remain connected',(
 });
 test('city labels mount by default and can be hidden; style recovery retains playback',()=>{
   const {elements,map,markers,cloud}=app();
-  assert.equal(markers.length,cities.length);assert.ok(markers.some(marker=>marker.options.element.textContent==='Namche Bazaar'));
+  assert.equal(markers.length,cities.length+peaks.length);assert.ok(markers.some(marker=>marker.options.element.textContent==='Namche Bazaar'));
   elements.get('city-names').checked=false;elements.get('city-names').fire('change');
+  assert.ok(markers.filter(marker=>marker.options.element.dataset.placeType==='city').every(marker=>marker.options.element.classes.has('is-hidden')));
+  const matterhorn=markers.find(marker=>marker.options.element.textContent==='Matterhorn');
+  assert.equal(matterhorn.options.element.classes.has('is-hidden'),false,'peak labels remain when city names are hidden');
+  elements.get('peak-names').checked=false;elements.get('peak-names').fire('change');
   assert.ok(markers.every(marker=>marker.options.element.classes.has('is-hidden')));
   cloud().windOffset=[420,-160];elements.get('pause').fire('click');map.layers.clear();map.fire('style.load');
   assert.deepEqual(cloud().windOffset,[420,-160]);assert.equal(cloud().running,false);
+});
+
+test('selected summit labels win collisions and follow zoom and visible bounds',()=>{
+  const {elements,map,markers}=app();
+  map.project=()=>({x:400,y:400});
+  elements.get('mountain').fire('change','everest');
+  const visible=markers.filter(marker=>!marker.options.element.classes.has('is-hidden'));
+  assert.equal(visible.length,1);assert.equal(visible[0].options.element.textContent,'Mount Everest');
+  map.camera={zoom:2};map.fire('move');
+  assert.ok(markers.filter(marker=>marker.options.element.dataset.placeType==='peak').every(marker=>marker.options.element.classes.has('is-hidden')));
+  map.camera={zoom:12};map.getBounds=()=>({contains:()=>false});map.fire('move');
+  assert.ok(markers.every(marker=>marker.options.element.classes.has('is-hidden')));
+});
+
+test('globe overview zooms to Earth and reset returns to the chosen summit',()=>{
+  const {elements,map}=app();
+  assert.equal(JSON.stringify(map.options.style.projection.type),JSON.stringify(['interpolate',['linear'],['zoom'],5,'vertical-perspective',7,'mercator']));
+  elements.get('globe-view').fire('click');map.fire('move');
+  assert.equal(map.camera.zoom,1.5);assert.equal(map.camera.pitch,0);
+  assert.equal(elements.get('status').textContent,'Zoom in for volumetric clouds');
+  elements.get('reset').fire('click');map.fire('move');
+  assert.deepEqual(map.camera.center,mountains[0].camera.center);
+  assert.equal(elements.get('status').textContent,'Atmosphere in motion');
+});
+
+test('cloud rendering skips spherical and blended globe matrices safely',()=>{
+  const {cloud}=app();const layer=cloud();layer.windOffset=[400,100];
+  const noGL=new Proxy({},{get(){throw new Error('globe view must not use the regional cloud pass');}});
+  for(const transition of [1,0.5,0.001]) {
+    layer.last=100;layer.render(noGL,{defaultProjectionData:{projectionTransition:transition}});
+    assert.equal(layer.last,0);assert.deepEqual(layer.windOffset,[400,100]);
+  }
 });

@@ -8,6 +8,33 @@ export const mountains=[
   {id:'everest',name:'Mount Everest',landscape:'The Khumbu Himalaya',region:'NEPAL / CHINA',center:[86.925,27.9881],altitudeOffset:4500,camera:{center:[86.925,27.9881],zoom:11.5,pitch:72,bearing:-25}}
 ];
 
+// Named summits around the destination cameras, plus regional landmarks.
+// Main destinations appear first when labels need to avoid one another.
+export const peaks=[
+  ...mountains.map(({id,name,center})=>({id,name,center,minZoom:7})),
+  {id:'monte-rosa',name:'Dufourspitze · Monte Rosa',center:[7.8671,45.9368],minZoom:9},
+  {id:'weisshorn',name:'Weisshorn',center:[7.7162,46.1014],minZoom:10},
+  {id:'dent-blanche',name:'Dent Blanche',center:[7.6117,46.0342],minZoom:10},
+  {id:'breithorn',name:'Breithorn',center:[7.7478,45.9411],minZoom:11},
+  {id:'aiguille-du-midi',name:'Aiguille du Midi',center:[6.8875,45.8786],minZoom:10},
+  {id:'mont-maudit',name:'Mont Maudit',center:[6.8808,45.8475],minZoom:11},
+  {id:'grandes-jorasses',name:'Grandes Jorasses',center:[6.9883,45.8686],minZoom:10},
+  {id:'monch',name:'Mönch',center:[7.9972,46.5583],minZoom:10},
+  {id:'schreckhorn',name:'Schreckhorn',center:[8.1189,46.5897],minZoom:10},
+  {id:'finsteraarhorn',name:'Finsteraarhorn',center:[8.1261,46.5375],minZoom:9},
+  {id:'alpspitze',name:'Alpspitze',center:[11.0472,47.4294],minZoom:10},
+  {id:'hochblassen',name:'Hochblassen',center:[11.0408,47.4175],minZoom:11},
+  {id:'marmolada',name:'Marmolada',center:[11.8508,46.4344],minZoom:9},
+  {id:'monte-cristallo',name:'Monte Cristallo',center:[12.2042,46.5728],minZoom:10},
+  {id:'antelao',name:'Antelao',center:[12.2867,46.4511],minZoom:10},
+  {id:'lhotse',name:'Lhotse',center:[86.933,27.9617],minZoom:9},
+  {id:'nuptse',name:'Nuptse',center:[86.8897,27.9664],minZoom:10},
+  {id:'pumori',name:'Pumori',center:[86.8283,28.014],minZoom:10},
+  {id:'ama-dablam',name:'Ama Dablam',center:[86.8611,27.8614],minZoom:9},
+  {id:'cho-oyu',name:'Cho Oyu',center:[86.6608,28.0942],minZoom:9},
+  {id:'makalu',name:'Makalu',center:[87.0883,27.8897],minZoom:9}
+];
+
 // Curated Alpine and Himalayan cities and gateway towns. HTML labels avoid a remote font API.
 export const cities=[
   {name:'Geneva',center:[6.1432,46.2044],minZoom:3},

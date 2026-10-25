@@ -258,6 +258,9 @@ export class CloudLayer {
   }
   render(gl,options) {
     if(!this.ready) return;
+    // Globe matrices describe a unit sphere, rather than Mercator meters.
+    // Leave the globe unobscured until MapLibre reaches its regional view.
+    if(options.defaultProjectionData.projectionTransition>0){this.last=0;return;}
     const now=performance.now();
     const elapsed=this.last?now-this.last:0;
     if(this.qualityToken!==this.settings.quality){this.qualityToken=this.settings.quality;this.resolutionScale=1;this.slowFrames=0;}

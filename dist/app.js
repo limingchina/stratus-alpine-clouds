@@ -2,7 +2,7 @@ import * as maplibregl from './vendor/maplibre-gl.mjs';
 import { CloudLayer } from './clouds.js';
 import { localFrame } from './math.js';
 import { windBearing } from './wind.js';
-import { mountains, cities } from './places.js';
+import { mountains, cities, peaks } from './places.js';
 
 const $=id=>document.getElementById(id);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -16,7 +16,9 @@ const presets={
 let map,cloud,orbitFrame=0,lastOrbit=0,ready=false,failed=false;
 function updateStatus() {
   if(!ready||failed)return;
-  $('status').textContent=!settings.enabled?'Clouds hidden':paused?'Clouds paused':settings.wind===0?'Calm · 0 km/h':'Atmosphere in motion';
+  const globalView=map.getZoom()<7;
+  $('status').textContent=!settings.enabled?'Clouds hidden':globalView?'Zoom in for volumetric clouds':paused?'Clouds paused':settings.wind===0?'Calm · 0 km/h':'Atmosphere in motion';
+  if(globalView)$('fps').textContent='';
 }
 
 function mountCloudLayer() {
@@ -104,6 +106,7 @@ $('orbit').addEventListener('click',()=>{
   if(settings.orbit)stopOrbit();else{settings.orbit=true;$('orbit').setAttribute('aria-pressed','true');orbitFrame=requestAnimationFrame(orbit);}
 });
 $('reset').addEventListener('click',()=>{stopOrbit();map?.easeTo({...destination.camera,duration:reduced.matches?0:1600});});
+$('globe-view').addEventListener('click',()=>{stopOrbit();map?.easeTo({center:destination.center,zoom:1.5,pitch:0,bearing:0,duration:reduced.matches?0:1800});});
 
 for(const mountain of mountains) {
   const option=document.createElement('option');option.value=mountain.id;option.textContent=mountain.name;$('mountain').append(option);
@@ -124,18 +127,22 @@ $('mountain').addEventListener('change',event=>{
   updateDestination();stopOrbit();
   if(cloud)cloud.model=localFrame(maplibregl.MercatorCoordinate.fromLngLat(destination.center,0));
   map?.flyTo({...destination.camera,duration:reduced.matches?0:2400});
+  updatePlaceLabels();
 });
 updateDestination();
 
 const placeMarkers=[];
-function updateCityLabels() {
+function updatePlaceLabels() {
   if(!map)return;
-  const show=$('city-names').checked,zoom=map.getZoom(),bounds=map.getBounds();
+  updateStatus();
+  const zoom=map.getZoom(),bounds=map.getBounds();
   const occupied=[],width=$('map').clientWidth,height=$('map').clientHeight;
-  for(const {city,element} of placeMarkers) {
-    let visible=show&&zoom>=city.minZoom&&bounds.contains(city.center);
+  const prioritized=[...placeMarkers].sort((a,b)=>Number(b.place.id===destination.id)-Number(a.place.id===destination.id)||(a.type==='peak'?0:1)-(b.type==='peak'?0:1)||a.place.minZoom-b.place.minZoom);
+  for(const {place,element,type} of prioritized) {
+    const show=$(type==='peak'?'peak-names':'city-names').checked;
+    let visible=show&&zoom>=place.minZoom&&bounds.contains(place.center);
     if(visible) {
-      const point=map.project(city.center),w=city.name.length*6.4+20;
+      const point=map.project(place.center),w=place.name.length*6.4+20;
       const box={left:point.x-w/2,right:point.x+w/2,top:point.y-27,bottom:point.y+8};
       visible=point.x>=0&&point.x<=width&&point.y>=0&&point.y<=height&&!occupied.some(other=>box.left<other.right&&box.right>other.left&&box.top<other.bottom&&box.bottom>other.top);
       if(visible)occupied.push(box);
@@ -143,15 +150,15 @@ function updateCityLabels() {
     element.classList.toggle('is-hidden',!visible);
   }
 }
-function mountCityLabels() {
-  for(const city of cities) {
-    const element=document.createElement('div');element.className='city-label is-hidden';element.textContent=city.name;
-    new maplibregl.Marker({element,anchor:'bottom',offset:[0,-4],opacityWhenCovered:0.25,subpixelPositioning:true}).setLngLat(city.center).addTo(map);
-    placeMarkers.push({city,element});
+function mountPlaceLabels() {
+  for(const [type,places] of [['peak',peaks],['city',cities]])for(const place of places) {
+    const element=document.createElement('div');element.className=`${type}-label is-hidden`;element.textContent=place.name;element.dataset.placeType=type;
+    new maplibregl.Marker({element,anchor:'bottom',offset:[0,-4],opacityWhenCovered:0.25,subpixelPositioning:true}).setLngLat(place.center).addTo(map);
+    placeMarkers.push({place,element,type});
   }
-  map.on('move',updateCityLabels);map.on('resize',updateCityLabels);updateCityLabels();
+  map.on('move',updatePlaceLabels);map.on('resize',updatePlaceLabels);updatePlaceLabels();
 }
-$('city-names').addEventListener('change',updateCityLabels);
+for(const id of ['city-names','peak-names'])$(id).addEventListener('change',updatePlaceLabels);
 $('about').addEventListener('click',()=>$('about-dialog').showModal());
 document.querySelector('.dialog-close').addEventListener('click',()=>$('about-dialog').close());
 $('about-dialog').addEventListener('click',event=>{if(event.target===$('about-dialog')){const r=event.target.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)event.target.close();}});
@@ -166,11 +173,13 @@ updateControls();
 try {
   maplibregl.setWorkerCount(2);
   map=new maplibregl.Map({
-    container:'map',...destination.camera,minZoom:2,maxZoom:15,maxPitch:85,
+    container:'map',...destination.camera,minZoom:0,maxZoom:15,maxPitch:85,
     canvasContextAttributes:{antialias:false,alpha:false,preserveDrawingBuffer:true},
     pixelRatio:Math.min(window.devicePixelRatio||1,1.5),
     attributionControl:false,
-    style:{version:8,projection:{type:'mercator'},sources:{
+    // MapLibre's globe projection supports a zoom-dependent transition.
+    // Finish flattening at regional scale, where meter-space clouds take over.
+    style:{version:8,projection:{type:['interpolate',['linear'],['zoom'],5,'vertical-perspective',7,'mercator']},sources:{
       satellite:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:18,attribution:'Imagery © Esri, Maxar, Earthstar Geographics, GIS User Community'},
       elevation:{type:'raster-dem',tiles:['https://tiles.mapterhorn.com/{z}/{x}/{y}.webp'],tileSize:512,encoding:'terrarium',maxzoom:12,attribution:'<a href="https://mapterhorn.com/attribution" target="_blank">© Mapterhorn</a>'}
     },layers:[
@@ -192,7 +201,7 @@ try {
   map.on('style.load',()=>{if(ready)mountCloudLayer();});
   map.on('load',()=>{
     ready=true;
-    mountCloudLayer();updatePlayback(paused);mountCityLabels();
+    mountCloudLayer();updatePlayback(paused);mountPlaceLabels();
     $('loading').classList.add('loaded');
     $('map').dataset.terrain='ready';
     const observer=new IntersectionObserver(([entry])=>{cloud.visible=entry.isIntersecting;cloud.last=0;if(cloud.visible)map.triggerRepaint();});
