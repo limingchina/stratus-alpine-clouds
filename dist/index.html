@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#e9eee9">
+  <meta name="description" content="Explore real Alpine terrain beneath an interactive, volumetric cloud atmosphere.">
+  <title>Stratus — Alpine Cloud Observatory</title>
+  <link rel="stylesheet" href="./vendor/maplibre-gl.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="map" aria-label="Interactive 3D map of the Pennine Alps"></div>
+  <div class="scrim"></div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Stratus home"><svg viewBox="0 0 34 28" aria-hidden="true"><path d="M2 18c0-3 2-5 5-5 0-6 4-10 10-10 5 0 9 3 10 8 3 0 5 3 5 6 0 4-3 7-7 7H8"/><path d="M3 24h15M1 20h11"/></svg>STRATUS<span class="brand-rule"></span><span class="brand-sub">ALPINE OBSERVATORY</span></a>
+    <div class="top-actions"><span class="live-label"><i></i> SIMULATED ATMOSPHERE</span><button id="about" class="text-button">How it works <span>↗</span></button></div>
+  </header>
+  <main>
+    <section class="location" aria-label="Current landscape">
+      <div class="eyebrow"><span class="tiny-cross">+</span> SWITZERLAND / ITALY</div>
+      <h1>The Pennine Alps<span>.</span></h1>
+      <p>Real mountains. An atmosphere in motion.</p>
+      <div class="coordinates">45.9763° N <span> / </span> 7.6586° E <span class="location-line"></span> MATTERHORN</div>
+    </section>
+    <aside class="panel" aria-label="Atmosphere controls">
+      <div class="panel-heading"><div><div class="eyebrow">THE CONDITIONS</div><h2>Atmosphere</h2></div><svg class="weather-icon" viewBox="0 0 36 36" aria-hidden="true"><circle cx="24" cy="12" r="5"/><path d="M23 22a7 7 0 0 0-13-3 5 5 0 0 0 0 10h15a5 5 0 0 0-2-10"/><path d="M24 2v2m10 8h-2M31 5l-2 2"/></svg></div>
+      <div class="cloud-toggle"><div><span id="weather-name">Alpine drift</span><small id="layer-description">Cloud layer · 2,200–3,400 m</small></div><button id="cloud-toggle" class="switch" role="switch" aria-checked="true" aria-label="Show clouds"><span></span></button></div>
+      <div class="sliders">
+        <label class="control" for="coverage"><span>Cloud coverage</span><output id="coverage-value" for="coverage">58%</output><input id="coverage" type="range" min="0" max="100" step="1" value="58"></label>
+        <label class="control" for="altitude"><span>Cloud base</span><output id="altitude-value" for="altitude">2,200 m</output><input id="altitude" type="range" min="400" max="5500" step="50" value="2200"></label>
+        <label class="control" for="thickness"><span>Cloud depth</span><output id="thickness-value" for="thickness">1,200 m</output><input id="thickness" type="range" min="300" max="3000" step="50" value="1200"></label>
+        <label class="control" for="wind"><span>Wind speed</span><output id="wind-value" for="wind">24 km/h</output><input id="wind" type="range" min="0" max="90" step="1" value="24"></label>
+        <label class="control" for="sun"><span>Sun position</span><output id="sun-value" for="sun">14:00</output><input id="sun" type="range" min="6" max="19" step="0.25" value="14"></label>
+      </div>
+      <div class="quality-row"><label for="quality">Render quality</label><select id="quality"><option value="draft">Light</option><option value="balanced" selected>Balanced</option><option value="high">High</option></select></div>
+      <div class="panel-foot"><span class="status-dot"></span><span id="status" role="status">Loading Alpine terrain…</span><span id="fps"></span></div>
+    </aside>
+    <section class="scene-picker" aria-label="Atmosphere presets"><div class="eyebrow">CHOOSE YOUR ATMOSPHERE</div><div class="presets">
+      <button class="preset selected" data-preset="drift" aria-pressed="true"><span class="preset-number">01</span><span>Alpine drift<small>Light &amp; expansive</small></span><span class="preset-mark">↗</span></button>
+      <button class="preset" data-preset="fog" aria-pressed="false"><span class="preset-number">02</span><span>Valley fog<small>Low &amp; enveloping</small></span><span class="preset-mark">↗</span></button>
+      <button class="preset" data-preset="golden" aria-pressed="false"><span class="preset-number">03</span><span>Golden hour<small>Warm &amp; weightless</small></span><span class="preset-mark">↗</span></button>
+    </div></section>
+    <div class="view-tools"><button id="pause" aria-pressed="false"><span id="pause-icon">Ⅱ</span><span id="pause-label">Pause clouds</span></button><span class="tool-rule"></span><button id="orbit" aria-pressed="false"><span>◎</span> Orbit</button><button id="reset" aria-label="Reset camera" title="Reset camera">↺</button></div>
+    <div class="map-hint">DRAG TO EXPLORE <span>·</span> RIGHT-DRAG TO TILT <span>·</span> SCROLL TO ZOOM</div>
+    <button id="mobile-controls" class="mobile-controls" aria-expanded="false">Atmosphere <span>⌃</span></button>
+  </main>
+  <div class="load-screen" id="loading"><span class="loading-symbol"></span><span>Finding a little altitude<span class="loading-dots">…</span></span></div>
+  <div id="error" role="alert" hidden></div>
+  <dialog id="about-dialog"><button class="dialog-close" aria-label="Close">×</button><div class="eyebrow">BEHIND THE ATMOSPHERE</div><h2>A little science.<br>A different perspective.</h2><p>The landscape is real elevation data, rendered in 3D by MapLibre. The weather is an interactive simulation.</p><div class="explanation"><b>01 / Volume, not a backdrop</b><p>Each viewing ray travels through a three-dimensional noise field. Cloud density accumulates into soft, sunlit volumes anchored in meters above sea level.</p><b>02 / Mountains come first</b><p>The terrain depth buffer stops each ray at the mountain surface. Peaks can rise through the clouds; nearby clouds can veil distant slopes.</p><b>03 / Light through the mist</b><p>Light sampling, atmospheric scattering, and wind give the clouds shape and movement. Try the same landscape at golden hour.</p></div><p class="credits">Terrain: <a href="https://mapterhorn.com/attribution" target="_blank" rel="noreferrer">Mapterhorn</a>. Imagery: Esri, Maxar, Earthstar Geographics and the GIS User Community. Built with <a href="https://maplibre.org/" target="_blank" rel="noreferrer">MapLibre GL JS</a> and WebGL 2. Requires internet access for map tiles.</p></dialog>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
