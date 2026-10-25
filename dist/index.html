@@ -18,19 +18,21 @@
   </header>
   <main>
     <section class="location" aria-label="Current landscape">
-      <div class="eyebrow"><span class="tiny-cross">+</span> SWITZERLAND / ITALY</div>
-      <h1>The Pennine Alps<span>.</span></h1>
+      <div class="eyebrow"><span class="tiny-cross">+</span> <span id="region">SWITZERLAND / ITALY</span></div>
+      <h1><span id="landscape">The Pennine Alps</span><span>.</span></h1>
       <p>Real mountains. An atmosphere in motion.</p>
-      <div class="coordinates">45.9763° N <span> / </span> 7.6586° E <span class="location-line"></span> MATTERHORN</div>
+      <div class="coordinates"><span id="coordinates">45.9763° N / 7.6586° E</span><span class="location-line"></span><span id="peak-name">MATTERHORN</span></div>
+      <div class="destination-controls"><label for="mountain">EXPLORE A SUMMIT</label><select id="mountain" aria-label="Choose a famous mountain"></select><label class="city-toggle"><input id="city-names" type="checkbox" checked> City names</label></div>
     </section>
     <aside class="panel" aria-label="Atmosphere controls">
       <div class="panel-heading"><div><div class="eyebrow">THE CONDITIONS</div><h2>Atmosphere</h2></div><svg class="weather-icon" viewBox="0 0 36 36" aria-hidden="true"><circle cx="24" cy="12" r="5"/><path d="M23 22a7 7 0 0 0-13-3 5 5 0 0 0 0 10h15a5 5 0 0 0-2-10"/><path d="M24 2v2m10 8h-2M31 5l-2 2"/></svg></div>
       <div class="cloud-toggle"><div><span id="weather-name">Alpine drift</span><small id="layer-description">Cloud layer · 2,200–3,400 m</small></div><button id="cloud-toggle" class="switch" role="switch" aria-checked="true" aria-label="Show clouds"><span></span></button></div>
       <div class="sliders">
         <label class="control" for="coverage"><span>Cloud coverage</span><output id="coverage-value" for="coverage">58%</output><input id="coverage" type="range" min="0" max="100" step="1" value="58"></label>
-        <label class="control" for="altitude"><span>Cloud base</span><output id="altitude-value" for="altitude">2,200 m</output><input id="altitude" type="range" min="400" max="5500" step="50" value="2200"></label>
+        <label class="control" for="altitude"><span>Cloud base</span><output id="altitude-value" for="altitude">2,200 m</output><input id="altitude" type="range" min="400" max="11000" step="50" value="2200"></label>
         <label class="control" for="thickness"><span>Cloud depth</span><output id="thickness-value" for="thickness">1,200 m</output><input id="thickness" type="range" min="300" max="3000" step="50" value="1200"></label>
         <label class="control" for="wind"><span>Wind speed</span><output id="wind-value" for="wind">24 km/h</output><input id="wind" type="range" min="0" max="90" step="1" value="24"></label>
+        <label class="control" for="direction"><span>Wind from</span><output id="direction-value" for="direction">W · 270°</output><input id="direction" type="range" min="0" max="360" step="5" value="270"><small class="control-note">0° N · 90° E · 180° S · 270° W<br>Cloud motion shown at 6× real time</small></label>
         <label class="control" for="sun"><span>Sun position</span><output id="sun-value" for="sun">14:00</output><input id="sun" type="range" min="6" max="19" step="0.25" value="14"></label>
       </div>
       <div class="quality-row"><label for="quality">Render quality</label><select id="quality"><option value="draft">Light</option><option value="balanced" selected>Balanced</option><option value="high">High</option></select></div>
@@ -47,7 +49,7 @@
   </main>
   <div class="load-screen" id="loading"><span class="loading-symbol"></span><span>Finding a little altitude<span class="loading-dots">…</span></span></div>
   <div id="error" role="alert" hidden></div>
-  <dialog id="about-dialog"><button class="dialog-close" aria-label="Close">×</button><div class="eyebrow">BEHIND THE ATMOSPHERE</div><h2>A little science.<br>A different perspective.</h2><p>The landscape is real elevation data, rendered in 3D by MapLibre. The weather is an interactive simulation.</p><div class="explanation"><b>01 / Volume, not a backdrop</b><p>Each viewing ray travels through a three-dimensional noise field. Cloud density accumulates into soft, sunlit volumes anchored in meters above sea level.</p><b>02 / Mountains come first</b><p>The terrain depth buffer stops each ray at the mountain surface. Peaks can rise through the clouds; nearby clouds can veil distant slopes.</p><b>03 / Light through the mist</b><p>Light sampling, atmospheric scattering, and wind give the clouds shape and movement. Try the same landscape at golden hour.</p></div><p class="credits">Terrain: <a href="https://mapterhorn.com/attribution" target="_blank" rel="noreferrer">Mapterhorn</a>. Imagery: Esri, Maxar, Earthstar Geographics and the GIS User Community. Built with <a href="https://maplibre.org/" target="_blank" rel="noreferrer">MapLibre GL JS</a> and WebGL 2. Requires internet access for map tiles.</p></dialog>
+  <dialog id="about-dialog"><button class="dialog-close" aria-label="Close">×</button><div class="eyebrow">BEHIND THE ATMOSPHERE</div><h2>A little science.<br>A different perspective.</h2><p>The landscape is real elevation data, rendered in 3D by MapLibre. The weather is an interactive simulation.</p><div class="explanation"><b>01 / Volume, not a backdrop</b><p>Each viewing ray travels through a three-dimensional noise field. Cloud density accumulates into soft, sunlit volumes anchored in meters above sea level.</p><b>02 / Mountains come first</b><p>The terrain depth buffer stops each ray at the mountain surface. Peaks can rise through the clouds; nearby clouds can veil distant slopes.</p><b>03 / Follow the wind</b><p>Clouds move automatically whenever wind speed is above zero. Wind direction means where the wind comes from: a westerly wind (270°) carries clouds east. Motion is shown at six times real time so you can see the drift. Set 0 km/h for still clouds, or use Pause clouds.</p><b>04 / Explore the mountains</b><p>Choose a famous summit to move the camera, or zoom out for a wider view. City names show selected cities and gateway towns in the Alps and Himalaya, with more detail as you zoom in. The volumetric cloud view is intended for regional exploration.</p></div><p class="credits">Terrain: <a href="https://mapterhorn.com/attribution" target="_blank" rel="noreferrer">Mapterhorn</a>. Imagery: Esri, Maxar, Earthstar Geographics and the GIS User Community. Built with <a href="https://maplibre.org/" target="_blank" rel="noreferrer">MapLibre GL JS</a> and WebGL 2. Requires internet access for map tiles.</p></dialog>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

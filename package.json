@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "python3 -m http.server 4173 --bind 127.0.0.1 --directory dist",
-    "check": "node --check dist/app.js && node --check dist/clouds.js && node --check dist/math.js && node --test test/math.test.js"
+    "check": "node --check dist/app.js && node --check dist/clouds.js && node --check dist/math.js && node --check dist/wind.js && node --check dist/places.js && node --test test/*.test.js"
   }
 }

@@ -1,4 +1,5 @@
 import { multiply, inverse, localFrame } from './math.js';
+import { advanceWind } from './wind.js';
 
 const vertex = `#version 300 es
 precision highp float;
@@ -17,8 +18,8 @@ uniform sampler3D u_noise;
 uniform highp sampler2D u_depth;
 uniform mat4 u_inverse;
 uniform vec3 u_eye, u_sun;
-uniform vec2 u_depthRange;
-uniform float u_time, u_coverage, u_base, u_thickness, u_wind, u_warmth;
+uniform vec2 u_depthRange, u_windOffset;
+uniform float u_coverage, u_base, u_thickness, u_warmth;
 uniform int u_steps;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
@@ -30,18 +31,18 @@ float valueNoise(vec3 p) {
 float shape(vec3 p, bool detailed) {
   float h = (p.z - u_base) / u_thickness;
   if (h <= 0.0 || h >= 1.0) return 0.0;
-  vec3 wind = vec3(u_time*u_wind*0.76, u_time*u_wind*0.35, 0.0);
-  vec3 q = (p + wind) / vec3(1900.0,1900.0,1150.0);
-  q += 0.18*sin(q.yzx*1.6 + vec3(0.0,u_time*0.015,0.0));
+  vec3 advected = p - vec3(u_windOffset, 0.0);
+  vec3 q = advected / vec3(1900.0,1900.0,1150.0);
+  q += 0.18*sin(q.yzx*1.6);
   float n = valueNoise(q)*0.57 + valueNoise(q*2.03+13.7)*0.28;
   n += valueNoise(q*4.07+27.1)*0.15;
-  float billow = textureLod(u_noise, (p+wind)/15000.0, 0.0).g;
+  float billow = textureLod(u_noise, advected/15000.0, 0.0).g;
   n = n*0.78 + billow*0.22;
   float profile = smoothstep(0.0,0.12,h)*(1.0-smoothstep(0.38,1.0,h));
   float threshold = mix(0.79,0.27,u_coverage) + (1.0-profile)*0.22;
   float density = max(0.0, (n-threshold)*3.7);
   if (detailed && density > 0.0) {
-    float erosion = textureLod(u_noise,(p+wind*1.15)/2300.0,0.0).g;
+    float erosion = textureLod(u_noise,advected/2300.0,0.0).g;
     density = max(0.0,density-(1.0-erosion)*0.15*(1.0-density));
   }
   return clamp(density,0.0,1.0)*profile;
@@ -184,7 +185,7 @@ export class CloudLayer {
   id='volumetric-clouds'; type='custom'; renderingMode='3d';
   constructor(origin, settings, onStatus) {
     this.model=localFrame(origin); this.settings=settings; this.onStatus=onStatus;
-    this.time=0; this.last=0; this.frames=0; this.lastMetric=0; this.running=true; this.visible=true;
+    this.windOffset=[0,0]; this.last=0; this.frames=0; this.lastMetric=0; this.running=true; this.visible=true;
     this.resolutionScale=1;this.slowFrames=0;
   }
   onAdd(map,gl) {
@@ -264,7 +265,9 @@ export class CloudLayer {
       this.slowFrames=elapsed>65?this.slowFrames+1:Math.max(0,this.slowFrames-1);
       if(this.slowFrames>30&&this.resolutionScale>0.55){this.resolutionScale=Math.max(0.55,this.resolutionScale*0.85);this.slowFrames=0;}
     }
-    if(this.last&&this.running&&this.visible&&!document.hidden) this.time+=Math.min(0.1,(now-this.last)/1000);
+    if(this.last&&this.running&&this.visible&&!document.hidden&&this.settings.enabled) {
+      this.windOffset=advanceWind(this.windOffset,this.settings.wind,this.settings.direction,Math.min(1,elapsed/1000));
+    }
     this.last=now;
     const state={
       draw:gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING),read:gl.getParameter(gl.READ_FRAMEBUFFER_BINDING),
@@ -301,9 +304,9 @@ export class CloudLayer {
       const warmth=Math.min(1,Math.max(0,(Math.abs(s.sun-12)-2)/4.5));
       gl.uniform1i(u.u_noise,0);gl.uniform1i(u.u_depth,1);
       gl.uniformMatrix4fv(u.u_inverse,false,new Float32Array(inv));gl.uniform3fv(u.u_eye,eye);gl.uniform3fv(u.u_sun,sun);
-      gl.uniform2fv(u.u_depthRange,state.depthRange);gl.uniform1f(u.u_time,this.time);
+      gl.uniform2fv(u.u_depthRange,state.depthRange);gl.uniform2fv(u.u_windOffset,this.windOffset);
       gl.uniform1f(u.u_coverage,s.enabled?s.coverage/100:0);gl.uniform1f(u.u_base,s.altitude);gl.uniform1f(u.u_thickness,s.thickness);
-      gl.uniform1f(u.u_wind,s.wind/3.6);gl.uniform1f(u.u_warmth,warmth);gl.uniform1i(u.u_steps,qualityPresets[s.quality].steps);
+      gl.uniform1f(u.u_warmth,warmth);gl.uniform1i(u.u_steps,qualityPresets[s.quality].steps);
       gl.drawArrays(gl.TRIANGLES,0,3);
       gl.bindFramebuffer(gl.FRAMEBUFFER,state.draw);gl.viewport(...state.viewport);
       gl.useProgram(this.composite.p);gl.enable(gl.BLEND);gl.blendEquation(gl.FUNC_ADD);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
@@ -326,7 +329,7 @@ export class CloudLayer {
       for(let i=0;i<3;i++){gl.activeTexture(gl.TEXTURE0+i);gl.bindTexture(gl.TEXTURE_2D,textures[i][0]);gl.bindTexture(gl.TEXTURE_3D,textures[i][1]);}
       gl.activeTexture(state.active);
     }
-    if(this.ready&&this.visible&&!document.hidden&&(this.running||this.settings.orbit))this.map.triggerRepaint();
+    if(this.ready&&this.visible&&!document.hidden&&((this.running&&this.settings.enabled&&this.settings.wind>0&&this.settings.coverage>0)||this.settings.orbit))this.map.triggerRepaint();
   }
   onRemove(map,gl) {
     for(const p of [this.cloud,this.composite])if(p)gl.deleteProgram(p.p);

@@ -1,29 +1,36 @@
 import * as maplibregl from './vendor/maplibre-gl.mjs';
 import { CloudLayer } from './clouds.js';
+import { localFrame } from './math.js';
+import { windBearing } from './wind.js';
+import { mountains, cities } from './places.js';
 
 const $=id=>document.getElementById(id);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-const settings={coverage:58,altitude:2200,thickness:1200,wind:24,sun:14,quality:'balanced',enabled:true,orbit:false};
-const initialCamera={center:[7.665,45.978],zoom:11.8,pitch:72,bearing:-24};
+const settings={coverage:58,altitude:2200,thickness:1200,wind:24,direction:270,sun:14,quality:'balanced',enabled:true,orbit:false};
+let destination=mountains[0],paused=false;
 const presets={
-  drift:{name:'Alpine drift',coverage:58,altitude:2200,thickness:1200,wind:24,sun:14},
-  fog:{name:'Valley fog',coverage:83,altitude:1300,thickness:1400,wind:12,sun:10},
-  golden:{name:'Golden hour',coverage:64,altitude:2800,thickness:1300,wind:18,sun:18}
+  drift:{name:'Alpine drift',coverage:58,altitude:2200,thickness:1200,wind:24,direction:270,sun:14},
+  fog:{name:'Valley fog',coverage:83,altitude:1300,thickness:1400,wind:12,direction:315,sun:10},
+  golden:{name:'Golden hour',coverage:64,altitude:2800,thickness:1300,wind:18,direction:225,sun:18}
 };
 let map,cloud,orbitFrame=0,lastOrbit=0,ready=false,failed=false;
+function updateStatus() {
+  if(!ready||failed)return;
+  $('status').textContent=!settings.enabled?'Clouds hidden':paused?'Clouds paused':settings.wind===0?'Calm · 0 km/h':'Atmosphere in motion';
+}
 
 function mountCloudLayer() {
   if(map.getLayer('volumetric-clouds'))return;
   const previous=cloud;
   failed=false;
-  const origin=maplibregl.MercatorCoordinate.fromLngLat([7.6586,45.9763],0);
+  const origin=maplibregl.MercatorCoordinate.fromLngLat(destination.center,0);
   cloud=new CloudLayer(origin,settings,result=>{
     if(result.error){failed=true;$('status').textContent='Cloud renderer unavailable';showError(`The cloud renderer could not start: ${result.error}. The terrain remains interactive.`);}
-    else if(result.ready&&!failed){$('status').textContent='Atmosphere ready';if(result.fps)$('fps').textContent=`${Math.min(240,Math.round(result.fps))} fps`;}
+    else if(result.ready&&!failed){updateStatus();if(result.fps)$('fps').textContent=`${Math.min(240,Math.round(result.fps))} fps`;}
     $('map').dataset.renderer=result.error?'error':'ready';
   });
-  cloud.time=previous?.time??0;
-  cloud.running=previous?.running??!reduced.matches;
+  cloud.windOffset=previous?.windOffset??[0,0];
+  cloud.running=!paused;
   map.addLayer(cloud);
   if(cloud.ready)$('error').hidden=true;
   syncSun();map.triggerRepaint();
@@ -31,20 +38,23 @@ function mountCloudLayer() {
 
 function showError(message) { $('error').hidden=false;$('error').textContent=message;$('loading').classList.add('loaded'); }
 function updateControls() {
-  for(const key of ['coverage','altitude','thickness','wind','sun']) {
+  for(const key of ['coverage','altitude','thickness','wind','direction','sun']) {
     const input=$(key);input.value=settings[key];
     const percent=(settings[key]-Number(input.min))/(Number(input.max)-Number(input.min))*100;
     input.style.setProperty('--progress',`${percent}%`);
     let value;
     if(key==='coverage')value=`${settings[key]}%`;
     else if(key==='wind')value=`${settings[key]} km/h`;
+    else if(key==='direction')value=windBearing(settings.direction);
     else if(key==='sun'){const h=Math.floor(settings.sun),m=Math.round((settings.sun-h)*60);value=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}
     else value=`${settings[key].toLocaleString('en-US')} m`;
     $(`${key}-value`).value=value;
+    input.setAttribute('aria-valuetext',value);
   }
   $('layer-description').textContent=`Cloud layer · ${settings.altitude.toLocaleString('en-US')}–${(settings.altitude+settings.thickness).toLocaleString('en-US')} m`;
   $('quality').value=settings.quality;
   $('cloud-toggle').setAttribute('aria-checked',String(settings.enabled));
+  updateStatus();
 }
 function syncSun() {
   if(!ready)return;
@@ -62,20 +72,23 @@ function presetSelection(id) {
 function applyPreset(id) {
   const preset=presets[id];
   Object.assign(settings,preset,{enabled:true});
+  settings.altitude+=destination.altitudeOffset??0;
   $('weather-name').textContent=preset.name;
   presetSelection(id);updateControls();syncSun();map?.triggerRepaint();
 }
-for(const key of ['coverage','altitude','thickness','wind','sun']) $(key).addEventListener('input',event=>{
+for(const key of ['coverage','altitude','thickness','wind','direction','sun']) $(key).addEventListener('input',event=>{
   settings[key]=Number(event.target.value);$('weather-name').textContent='Your atmosphere';
-  presetSelection(null);updateControls();if(key==='sun')syncSun();map?.triggerRepaint();
+  presetSelection(null);updateControls();if(key==='sun')syncSun();if(cloud)cloud.last=0;map?.triggerRepaint();
 });
 document.querySelectorAll('.preset').forEach(button=>button.addEventListener('click',()=>applyPreset(button.dataset.preset)));
 $('quality').addEventListener('change',event=>{settings.quality=event.target.value;map?.triggerRepaint();});
 $('cloud-toggle').addEventListener('click',()=>{settings.enabled=!settings.enabled;updateControls();map?.triggerRepaint();});
-function updatePlayback(paused) {
+function updatePlayback(nextPaused) {
+  paused=nextPaused;
   if(cloud)cloud.running=!paused;
   $('pause').setAttribute('aria-pressed',String(paused));$('pause-icon').textContent=paused?'▷':'Ⅱ';$('pause-label').textContent=paused?'Resume clouds':'Pause clouds';
   if(cloud)cloud.last=0;
+  updateStatus();
   map?.triggerRepaint();
 }
 $('pause').addEventListener('click',()=>updatePlayback($('pause').getAttribute('aria-pressed')!=='true'));
@@ -90,7 +103,55 @@ function stopOrbit() {
 $('orbit').addEventListener('click',()=>{
   if(settings.orbit)stopOrbit();else{settings.orbit=true;$('orbit').setAttribute('aria-pressed','true');orbitFrame=requestAnimationFrame(orbit);}
 });
-$('reset').addEventListener('click',()=>{stopOrbit();map?.easeTo({...initialCamera,duration:reduced.matches?0:1600});});
+$('reset').addEventListener('click',()=>{stopOrbit();map?.easeTo({...destination.camera,duration:reduced.matches?0:1600});});
+
+for(const mountain of mountains) {
+  const option=document.createElement('option');option.value=mountain.id;option.textContent=mountain.name;$('mountain').append(option);
+}
+function updateDestination() {
+  $('region').textContent=destination.region;
+  $('landscape').textContent=destination.landscape;
+  const [lng,lat]=destination.center;
+  $('coordinates').textContent=`${lat.toFixed(4)}° N / ${lng.toFixed(4)}° E`;
+  $('peak-name').textContent=destination.name.toUpperCase();
+  $('map').setAttribute('aria-label',`Interactive 3D map around ${destination.name}`);
+}
+$('mountain').addEventListener('change',event=>{
+  const previousOffset=destination.altitudeOffset??0;
+  destination=mountains.find(mountain=>mountain.id===event.target.value);
+  settings.altitude=Math.max(400,Math.min(11000,settings.altitude+(destination.altitudeOffset??0)-previousOffset));
+  updateControls();
+  updateDestination();stopOrbit();
+  if(cloud)cloud.model=localFrame(maplibregl.MercatorCoordinate.fromLngLat(destination.center,0));
+  map?.flyTo({...destination.camera,duration:reduced.matches?0:2400});
+});
+updateDestination();
+
+const placeMarkers=[];
+function updateCityLabels() {
+  if(!map)return;
+  const show=$('city-names').checked,zoom=map.getZoom(),bounds=map.getBounds();
+  const occupied=[],width=$('map').clientWidth,height=$('map').clientHeight;
+  for(const {city,element} of placeMarkers) {
+    let visible=show&&zoom>=city.minZoom&&bounds.contains(city.center);
+    if(visible) {
+      const point=map.project(city.center),w=city.name.length*6.4+20;
+      const box={left:point.x-w/2,right:point.x+w/2,top:point.y-27,bottom:point.y+8};
+      visible=point.x>=0&&point.x<=width&&point.y>=0&&point.y<=height&&!occupied.some(other=>box.left<other.right&&box.right>other.left&&box.top<other.bottom&&box.bottom>other.top);
+      if(visible)occupied.push(box);
+    }
+    element.classList.toggle('is-hidden',!visible);
+  }
+}
+function mountCityLabels() {
+  for(const city of cities) {
+    const element=document.createElement('div');element.className='city-label is-hidden';element.textContent=city.name;
+    new maplibregl.Marker({element,anchor:'bottom',offset:[0,-4],opacityWhenCovered:0.25,subpixelPositioning:true}).setLngLat(city.center).addTo(map);
+    placeMarkers.push({city,element});
+  }
+  map.on('move',updateCityLabels);map.on('resize',updateCityLabels);updateCityLabels();
+}
+$('city-names').addEventListener('change',updateCityLabels);
 $('about').addEventListener('click',()=>$('about-dialog').showModal());
 document.querySelector('.dialog-close').addEventListener('click',()=>$('about-dialog').close());
 $('about-dialog').addEventListener('click',event=>{if(event.target===$('about-dialog')){const r=event.target.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)event.target.close();}});
@@ -99,13 +160,13 @@ document.addEventListener('visibilitychange',()=>{
   if(cloud)cloud.last=0;
   if(!document.hidden){map?.triggerRepaint();if(settings.orbit&&!orbitFrame)orbitFrame=requestAnimationFrame(orbit);}
 });
-reduced.addEventListener('change',event=>{updatePlayback(event.matches);if(event.matches)stopOrbit();});
+reduced.addEventListener('change',event=>{if(event.matches)stopOrbit();});
 updateControls();
 
 try {
   maplibregl.setWorkerCount(2);
   map=new maplibregl.Map({
-    container:'map',...initialCamera,minZoom:8,maxZoom:15,maxPitch:85,
+    container:'map',...destination.camera,minZoom:2,maxZoom:15,maxPitch:85,
     canvasContextAttributes:{antialias:false,alpha:false,preserveDrawingBuffer:true},
     pixelRatio:Math.min(window.devicePixelRatio||1,1.5),
     attributionControl:false,
@@ -131,7 +192,7 @@ try {
   map.on('style.load',()=>{if(ready)mountCloudLayer();});
   map.on('load',()=>{
     ready=true;
-    mountCloudLayer();updatePlayback(reduced.matches);
+    mountCloudLayer();updatePlayback(paused);mountCityLabels();
     $('loading').classList.add('loaded');
     $('map').dataset.terrain='ready';
     const observer=new IntersectionObserver(([entry])=>{cloud.visible=entry.isIntersecting;cloud.last=0;if(cloud.visible)map.triggerRepaint();});

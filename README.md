@@ -11,12 +11,15 @@ npm run dev
 
 Open <http://127.0.0.1:4173>. The HTTP server is required for ES modules and the MapLibre worker. Internet access is required for Esri imagery and Mapterhorn elevation tiles. The app also requests Google Fonts; system fonts work if that request is blocked.
 
-Drag to pan, right-drag to rotate/tilt, scroll to zoom. The map's keyboard navigation also works. Choose Alpine drift, Valley fog, or Golden hour, or adjust coverage, cloud-base altitude, depth, wind and sun. Clouds can be paused or hidden. Orbit runs until stopped or manually interacting with the camera. Reduced-motion preference starts clouds paused.
+Drag to pan, right-drag to rotate/tilt, scroll to zoom. The map's keyboard navigation also works. Choose Alpine drift, Valley fog, or Golden hour, or adjust coverage, cloud-base altitude, depth, wind and sun. Clouds can be paused or hidden. Orbit runs until stopped or manually interacting with the camera. Clouds start moving automatically at nonzero wind speed; Pause clouds remains an explicit playback control. Wind direction uses meteorological bearings (where the wind comes from), and motion is displayed at 6× real time for legibility. Setting wind to zero freezes the density field. Reduced-motion preference removes camera flights and stops orbit, while cloud playback follows the controls.
+
+Choose Matterhorn, Mont Blanc, Eiger, Jungfrau, Zugspitze, Tre Cime di Lavaredo, or Mount Everest in the summit selector. Reset returns to the selected summit. Everest shifts cloud-base presets upward by 4,500 m; the cloud-base slider extends to 11,000 m. Zoom out to level 2 for a continental overview. Selected city and gateway-town labels appear by zoom level, avoid one another, and can be hidden with City names.
 
 ## Rendering
 
 - `dist/app.js` sets up a Mercator map, satellite imagery, raster DEM terrain, hillshade, sky and controls.
 - `dist/clouds.js` implements MapLibre's `CustomLayerInterface` with `renderingMode: '3d'`, sharing the map's WebGL 2 context.
+- `dist/wind.js` integrates wind displacement over each active frame, so speed and direction changes retain the current cloud position. `dist/places.js` provides destination cameras and curated place names.
 - `dist/math.js` converts a local east/north/up frame in **meters** to Mercator coordinates, combines it with the current map matrix in Float64, then inverts it for view rays. This limits precision loss near mountain surfaces.
 - A deterministic 64³ 3D texture supplies value noise and periodic Worley noise. Fractal noise, vertical profiles, domain warping and wind create a continuous density field.
 - The cloud pass ray-marches 40/64/96 samples depending on quality, accumulating Beer–Lambert extinction with approximate sunlight attenuation, forward scattering and ambient light.
@@ -29,9 +32,9 @@ To integrate with an existing **Mercator** MapLibre map, import `CloudLayer`, pa
 
 ## Verification and limits
 
-`npm run check` checks JavaScript syntax and runs camera-coordinate tests. The vendored MapLibre module was imported in Node to verify the pinned version and required API exports. A separate offline rendering review checked MapLibre's source, ray reconstruction, terrain pass ordering, shader syntax, state handling and context recovery.
+`npm run check` checks all application-module syntax and runs camera-coordinate, wind-bearing, drift-continuity, frame-rate independence, and control-integration tests. Control tests cover default playback under reduced motion, pause/resume, all seven destinations, Everest cloud presets, city visibility, expanded zoom bounds, camera reset, and context-restoration playback. Both cloud shader programs also compile and link in a native Mesa OpenGL ES 3.2 context. The vendored MapLibre module was imported in Node to verify the pinned version and required API exports. A separate offline rendering review checked MapLibre's source, ray reconstruction, terrain pass ordering, shader syntax, state handling and context recovery.
 
-**Live browser/GPU verification remains pending:** browser preview authority was declined during development. Shader compilation, frame rate, visual quality and driver-specific framebuffer behavior have therefore not been confirmed on a live GPU. The local server served the complete module graph successfully. Treat this as an implementation ready for visual validation, not a measured production renderer.
+**Live browser verification remains pending:** browser preview tooling is unavailable in the current environment. Native shader compilation and automated interaction tests pass; end-to-end MapLibre terrain rendering, visual quality, frame rate, and browser-specific framebuffer behavior have not been rechecked in a live browser.
 
 Weather is illustrative, not live meteorological data. Lighting uses single-scattering approximations; the demo does not project cloud shadows onto terrain, simulate precipitation, or use temporal reprojection. Cloud geometry is local and planar; altitude uses the meter scale at the origin, so fidelity is intended for regional exploration. Terrain is exaggerated 1.15× for legibility. Clouds use altitude above sea level in that rendered coordinate system.
 
