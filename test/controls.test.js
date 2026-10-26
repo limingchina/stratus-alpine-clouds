@@ -57,7 +57,7 @@ function app() {
 
 test('nonzero wind starts automatically even with reduced-motion preference',()=>{
   const {elements,cloud}=app();
-  assert.equal(cloud().running,true);assert.equal(cloud().settings.wind,24);
+  assert.equal(cloud().running,true);assert.equal(cloud().settings.wind,80);
   assert.equal(elements.get('pause').getAttribute('aria-pressed'),'false');
   elements.get('pause').fire('click');assert.equal(cloud().running,false);
   elements.get('direction').fire('input','90');assert.equal(cloud().settings.direction,90);

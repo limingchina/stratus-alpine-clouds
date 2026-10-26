@@ -6,10 +6,10 @@ import { mountains, cities, peaks } from './places.js';
 
 const $=id=>document.getElementById(id);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-const settings={coverage:58,altitude:2200,thickness:1200,wind:24,direction:270,sun:14,quality:'balanced',enabled:true,orbit:false};
+const settings={coverage:58,altitude:2200,thickness:1200,wind:80,direction:270,sun:14,quality:'balanced',enabled:true,orbit:false};
 let destination=mountains[0],paused=false;
 const presets={
-  drift:{name:'Alpine drift',coverage:58,altitude:2200,thickness:1200,wind:24,direction:270,sun:14},
+  drift:{name:'Alpine drift',coverage:58,altitude:2200,thickness:1200,wind:80,direction:270,sun:14},
   fog:{name:'Valley fog',coverage:83,altitude:1300,thickness:1400,wind:12,direction:315,sun:10},
   golden:{name:'Golden hour',coverage:64,altitude:2800,thickness:1300,wind:18,direction:225,sun:18}
 };
